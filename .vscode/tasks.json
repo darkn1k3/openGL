@@ -1,0 +1,30 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "C/C++: g++.exe build active file",
+            "command": "C:\\mingw64\\bin\\g++.exe",
+            "args": [
+                "-g",
+                "-I${workspaceFolder}/includes",
+                "${workspaceFolder}/src/glad.c",
+                "${workspaceFolder}/src/hello_world.cpp",
+                "-L${workspaceFolder}/libs",
+                "-lglfw3dll",
+                "-o",
+                "hello_world.exe"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
