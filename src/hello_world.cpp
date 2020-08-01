@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 
 #include "../includes/shader.h"
+#include "../includes/stb_image.h"
 
 #include <iostream>
 #include <string>
@@ -65,37 +66,65 @@ int main(int argc, char **argv)
 
     Shader shader("src/vertex.shader", "src/fragment.shader");
 
+    /******************** Data preparation ********************/
+    /**********************************************************/
     // Set up vertex data and configure attributes.
-    float vertices1[] = {
-        0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
-        0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+    float vertices[] = {
+        0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+        0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+        -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+        -0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f};
 
-    // unsigned int indices[] = {0, 1, 2, 2, 3, 4};
+    unsigned int indices[] = {0, 1, 2, 2, 3, 0};
 
     // generate 1 vertex buffer by generating its unique reference ID
     unsigned int VBOs, VAOs, EBO;
     glGenVertexArrays(1, &VAOs);
     glGenBuffers(1, &VBOs);
-    // glGenBuffers(1, &EBO);
+    glGenBuffers(1, &EBO);
         
     // bind the vertex buffer type and load the vertices into the allocated bound buffer in the GPUs memory
-    glBindVertexArray(VAOs);
-    glBindBuffer(GL_ARRAY_BUFFER, VBOs);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices1), vertices1, GL_STATIC_DRAW);
+    GLCALL(glBindVertexArray(VAOs));
+    GLCALL(glBindBuffer(GL_ARRAY_BUFFER, VBOs));
+    GLCALL(glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW));
+
+    GLCALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO));
+    GLCALL(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW));
+
     // link vertex input data to vertex shader attributes
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+    GLCALL(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0));
+    GLCALL(glEnableVertexAttribArray(0));
+    GLCALL(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(3 * sizeof(float))));
+    GLCALL(glEnableVertexAttribArray(1));
+    GLCALL(glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(6 * sizeof(float))));
+    GLCALL(glEnableVertexAttribArray(2));
 
-    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    // // unbind vertex buffer and vertex array because we already binded and "registered them"
+    // GLCALL(glBindBuffer(GL_ARRAY_BUFFER, 0));
+    // GLCALL(glBindVertexArray(0));
 
+    /**************** Texture generation ****************/
+    unsigned int texture;
+    GLCALL(glGenTextures(1, &texture));
+    GLCALL(glBindTexture(GL_TEXTURE_2D, texture));
+    GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
+    GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
+    GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+    GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 
-    // unbind vertex buffer and vertex array because we already binded and "registered them"
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
+    // load texture
+    int width, height, nChannels;
+    unsigned char *data = stbi_load("container.jpg", &width, &height, &nChannels, 0);
+    if(data)
+    {
+        GLCALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data));
+        GLCALL(glGenerateMipmap(GL_TEXTURE_2D));
+    }
+    else
+    {
+        std::cout << "Failed to load texture" << std::endl;
+    }
+    stbi_image_free(data);
 
     // render loop
     while (!glfwWindowShouldClose(window))
@@ -107,13 +136,16 @@ int main(int argc, char **argv)
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
+        GLCALL(glActiveTexture(GL_TEXTURE0));
+        GLCALL(glBindTexture(GL_TEXTURE_2D, texture));
         // draw call
         shader.use();
+        shader.setInt("ourTexture", 0);
 
         glBindVertexArray(VAOs); // not needed to bind every frame since we have only one
-        GLCALL(glDrawArrays(GL_TRIANGLES, 0, 3));
+        // GLCALL(glDrawArrays(GL_TRIANGLES, 0, 3));
 
-        // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        GLCALL(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0));
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         glfwSwapBuffers(window);

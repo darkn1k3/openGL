@@ -10,6 +10,7 @@
                 "-I${workspaceFolder}/includes",
                 "${workspaceFolder}/src/glad.c",
                 "${workspaceFolder}/src/hello_world.cpp",
+                "${workspaceFolder}/src/image_loader.cpp",
                 "-L${workspaceFolder}/libs",
                 "-lglfw3dll",
                 "-o",
