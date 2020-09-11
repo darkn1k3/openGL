@@ -36,7 +36,7 @@ void processInput(GLFWwindow *window);
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
-
+float mixValue = 0.2;
 
 int main(int argc, char **argv)
 {
@@ -70,10 +70,11 @@ int main(int argc, char **argv)
     /**********************************************************/
     // Set up vertex data and configure attributes.
     float vertices[] = {
-        0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-        0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
-        -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-        -0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f};
+        // position         //color             // tex coords
+        0.5f, 0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f,
+        0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,   1.0f, 0.0f,
+        -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f,   0.0f, 0.0f,
+        -0.5f, 0.5f, 0.0f,  1.0f, 1.0f, 0.0f,   0.0f, 1.0f};
 
     unsigned int indices[] = {0, 1, 2, 2, 3, 0};
 
@@ -103,8 +104,10 @@ int main(int argc, char **argv)
     // GLCALL(glBindBuffer(GL_ARRAY_BUFFER, 0));
     // GLCALL(glBindVertexArray(0));
 
+    /****************************************************/
     /**************** Texture generation ****************/
-    unsigned int texture;
+    /****************************************************/
+    unsigned int texture, texture2;
     GLCALL(glGenTextures(1, &texture));
     GLCALL(glBindTexture(GL_TEXTURE_2D, texture));
     GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
@@ -114,6 +117,7 @@ int main(int argc, char **argv)
 
     // load texture
     int width, height, nChannels;
+    stbi_set_flip_vertically_on_load(true);
     unsigned char *data = stbi_load("container.jpg", &width, &height, &nChannels, 0);
     if(data)
     {
@@ -125,6 +129,29 @@ int main(int argc, char **argv)
         std::cout << "Failed to load texture" << std::endl;
     }
     stbi_image_free(data);
+
+    GLCALL(glGenTextures(1, &texture2));
+    GLCALL(glBindTexture(GL_TEXTURE_2D, texture2));
+    GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
+    GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
+    GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+    GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+
+    data = stbi_load("awesomeface.png", &width, &height, &nChannels, 0);
+    if (data)
+    {
+        GLCALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data));
+        GLCALL(glGenerateMipmap(GL_TEXTURE_2D));
+    }
+    else
+    {
+        std::cout << "Failed to load texture" << std::endl;
+    }
+    stbi_image_free(data);
+
+    // specify which unifrom belongs to which texture
+    shader.use();
+    shader.setInt("ourTexture2", 1);
 
     // render loop
     while (!glfwWindowShouldClose(window))
@@ -138,9 +165,11 @@ int main(int argc, char **argv)
 
         GLCALL(glActiveTexture(GL_TEXTURE0));
         GLCALL(glBindTexture(GL_TEXTURE_2D, texture));
+        GLCALL(glActiveTexture(GL_TEXTURE1));
+        GLCALL(glBindTexture(GL_TEXTURE_2D, texture2));
         // draw call
+        shader.setFloat("mixAmount", mixValue);
         shader.use();
-        shader.setInt("ourTexture", 0);
 
         glBindVertexArray(VAOs); // not needed to bind every frame since we have only one
         // GLCALL(glDrawArrays(GL_TRIANGLES, 0, 3));
@@ -162,6 +191,17 @@ void processInput(GLFWwindow *window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+    {
+        if (mixValue < 1)
+            mixValue += 0.001f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+    {
+        if (mixValue > 0)
+            mixValue -= 0.001f;
+    }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
